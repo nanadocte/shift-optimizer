@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         Int     @id @default(autoincrement())
+  email      String  @unique
+  name       String
+  role       Role @default(EMPLOYE)
+  job        String?
+  preference Preference[]
+  shift      Shift[]
+}
+enum Role {
+  EMPLOYE 
+  ADMIN
+}
+model Preference {
+  id        Int     @id @default(autoincrement())
+  type      PreferenceType @default(PONCTUAL)
+  day       String?
+  date      String?
+  startHour Int?
+  endHour   Int?
+  user      User    @relation(fields : [userId], references : [id])
+  userId    Int
+}
+
+enum PreferenceType{
+  PONCTUAL 
+  RECURING
+}
+
+model Shift {
+  id        Int     @id @default(autoincrement())
+  day       DateTime
+  startTime DateTime
+  endTime   DateTime
+  jobNeeded String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+}
