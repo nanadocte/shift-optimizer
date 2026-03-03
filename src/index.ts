@@ -1,6 +1,10 @@
 import { prisma } from "../lib/prisma";
 import Fastify from "fastify";
 import userRoutes from "./modules/users/users.routes"
+import {authRoutes} from "./modules/auth/auth.routes"
+import fjwt from '@fastify/jwt'
+
+
 
 const fastify = Fastify({logger:true})
 
@@ -9,7 +13,10 @@ fastify.get('/', async(request, reply) => {
     reply.send({hello : "coucouuuu"})
 })
 
+
+fastify.register(fjwt, { secret: process.env.JWT_SECRET! })
 fastify.register(userRoutes)
+fastify.register(authRoutes)
 
 const start =  async() => {
   try{
