@@ -1,10 +1,10 @@
 import * as userService from './users.service'
 import { FastifyRequest, FastifyReply } from "fastify"
 
-type UserBody = { email: string, name: string, job: string, password:string }
-type UserParams = { id: string }
+export type UserBody = { email: string, name: string, job: string, password:string }
+export type UserParams = { id: string }
 type CreateUserRequest = FastifyRequest<{ Body: UserBody }>
-type UpdateUserRequest = FastifyRequest<{ Params: UserParams, Body: Partial<UserBody> }>
+export type UpdateUserRequest = FastifyRequest<{ Params: UserParams, Body: Partial<UserBody> }>
 type UserParamsRequest = FastifyRequest<{ Params: UserParams }>
 
 export async function getUsers(request: FastifyRequest, reply: FastifyReply){

@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import userRoutes from "./modules/users/users.routes"
 import {authRoutes} from "./modules/auth/auth.routes"
 import fjwt from '@fastify/jwt'
+import { authentificate } from "./plugins/authentification";
 
 
 
@@ -15,6 +16,7 @@ fastify.get('/', async(request, reply) => {
 
 
 fastify.register(fjwt, { secret: process.env.JWT_SECRET! })
+fastify.register(authentificate)
 fastify.register(userRoutes)
 fastify.register(authRoutes)
 
