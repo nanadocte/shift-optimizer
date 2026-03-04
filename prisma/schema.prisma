@@ -8,41 +8,78 @@ datasource db {
 }
 
 model User {
-  id         Int     @id @default(autoincrement())
-  email      String  @unique
+  id         Int          @id @default(autoincrement())
+  email      String       @unique
   name       String?
-  password   String
-  role       Role @default(EMPLOYE)
+  password   String?
+  role       Role         @default(EMPLOYE)
   job        String?
   preference Preference[]
+  contrainte Contrainte[]
   shift      Shift[]
 }
+
 enum Role {
-  EMPLOYE 
+  EMPLOYE
   ADMIN
 }
+
 model Preference {
-  id        Int     @id @default(autoincrement())
-  type      PreferenceType @default(PONCTUAL)
-  day       String?
-  date      String?
+  id        Int                      @id @default(autoincrement())
+  type      PreferenceContrainteType @default(PONCTUAL)
+  day       DayOfWeek?
+  date      DateTime?
   startHour Int?
   endHour   Int?
-  user      User    @relation(fields : [userId], references : [id])
+  user      User                     @relation(fields: [userId], references: [id])
   userId    Int
 }
 
-enum PreferenceType{
-  PONCTUAL 
+enum PreferenceContrainteType {
+  PONCTUAL
   RECURING
 }
 
-model Shift {
-  id        Int     @id @default(autoincrement())
-  day       DateTime
-  startTime DateTime
-  endTime   DateTime
-  jobNeeded String
-  user      User     @relation(fields: [userId], references: [id])
+enum DayOfWeek {
+  Lundi
+  Mardi
+  Mercredi
+  Jeudi
+  Vendredi
+  Samedi
+  Dimanche
+}
+
+model Contrainte {
+  id        Int                      @id @default(autoincrement())
+  type      PreferenceContrainteType @default(PONCTUAL)
+  day       DayOfWeek?
+  date      DateTime?
+  startTime String
+  endTime   String
+  user      User                     @relation(fields: [userId], references: [id])
   userId    Int
+}
+
+model ShiftTemplate {
+  id          Int       @id @default(autoincrement())
+  day         DayOfWeek
+  startTime   String
+  endTime     String
+  job         String
+  quantityJob Int
+  shift       Shift[]
+}
+
+model Shift {
+  id              Int           @id @default(autoincrement())
+  date            DateTime
+  startTime       String
+  endTime         String
+  job             String
+  user            User?         @relation(fields: [userId], references: [id])
+  userId          Int?
+  ShiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
+  ShiftTemplateId Int
+  shiftTemplateId Int
 }
