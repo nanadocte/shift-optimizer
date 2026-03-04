@@ -6,8 +6,10 @@ export async function getAllUsers (){
    return prisma.user.findMany({select: { id: true, email: true, name: true, role: true, job: true }})
 }
 
-export async function createUser (data : {email : string, name: string, job:string, password:string}){
-    return prisma.user.create({data : data, select: { id: true, email: true, name: true, role: true, job: true }})
+export async function createUser (data : {email : string, name: string,  job:string, password:string}){
+    
+        return prisma.user.create({data : data, select: { id: true, email: true, name: true, role: true, job: true }})
+        
 }
 
 export async function getUserById(where : {id : number}){

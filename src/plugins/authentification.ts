@@ -6,7 +6,12 @@ declare module 'fastify'{
         authentificate:(request : FastifyRequest, reply : FastifyReply)=> Promise<void>
     }
 }
-
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: { userId: number }
+    user: { userId: number }
+  }
+}
 export const authentificate = fastifyPlugin(async(fastify:FastifyInstance)=>  {
     fastify.decorate('authentificate', async (request: FastifyRequest, reply:FastifyReply)=> {
         try{
