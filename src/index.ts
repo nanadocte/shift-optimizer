@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma";
 import Fastify from "fastify";
 import userRoutes from "./modules/users/users.routes"
 import {authRoutes} from "./modules/auth/auth.routes"
+import { shiftRoutes } from "./modules/planning/planning.routes";
 import fjwt from '@fastify/jwt'
 import { authentificate } from "./plugins/authentification";
 
@@ -19,6 +20,7 @@ fastify.register(fjwt, { secret: process.env.JWT_SECRET! })
 fastify.register(authentificate)
 fastify.register(userRoutes)
 fastify.register(authRoutes)
+fastify.register(shiftRoutes)
 
 const start =  async() => {
   try{
