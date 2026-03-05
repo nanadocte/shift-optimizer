@@ -8,8 +8,8 @@ export async function shiftRoutes(fastify:FastifyInstance, option:object){
     fastify.put('/shifts/:id', shiftCtrl.updateShift)
     fastify.delete('/shifts/:id', shiftCtrl.deleteShift)
 
-    fastify.get('/shiftsTemplate', shiftCtrl.getAllShiftTemplates)
-    fastify.post('/shiftsTemplate', shiftCtrl.createShiftTemplate)
-    fastify.put('/shiftsTemplate/:id', shiftCtrl.updateShiftTemplate)
-    fastify.delete('/shiftsTemplate/:id', shiftCtrl.deleteShiftTemplate)
+    fastify.get('/shiftstemplates', shiftCtrl.getAllShiftTemplates)
+    fastify.post('/shiftstemplates', shiftCtrl.createShiftTemplate)
+    fastify.put('/shiftstemplates/:id', shiftCtrl.updateShiftTemplate)
+    fastify.delete('/shiftstemplates/:id', shiftCtrl.deleteShiftTemplate)
 }

@@ -1,5 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { Prisma } from '../../../generated/prisma/client'
+import * as UserService from "../users/users.service"
+import { DayOfWeek } from "../../../generated/prisma/client";
 
 // shift
 
@@ -34,3 +36,63 @@ export async function updateShiftTemplate(data: Prisma.ShiftTemplateUpdateInput 
 export async function deleteShiftTemplate(where:Prisma.ShiftTemplateWhereUniqueInput){
     return prisma.shiftTemplate.delete({where})
 }
+
+
+
+export async function generatePlanning(weekStart : Date){
+    const shiftTemplate = await getAllShiftTemplate()
+    const contraintes   = await UserService.getContrainte()
+    const preferences   = await UserService.getPreference()
+    const users         = await UserService.getAllUsers()
+    const planning = []
+    
+    for(const template of shiftTemplate){
+        const shiftDate = getDateForDay(weekStart, template.day)
+        const userEligible = users.filter((user)=> user.job === template.job)
+        const userDispo = userEligible.filter(user => {
+            const aUneContrainte = contraintes.some(contrainte => {
+                if (contrainte.userId !== user.id) return false
+                console.log("template.day:", template.day)
+                console.log("contrainte.day:", contrainte.day)
+
+                const bonJour = contrainte.type === "PONCTUAL" ? 
+                contrainte.date?.toDateString()=== shiftDate.toDateString() :
+                contrainte.day === template.day
+
+                if (!bonJour) return false
+                return contrainte.startTime < template.endTime &&
+                contrainte.endTime > template.startTime 
+            })
+               
+            return !aUneContrainte
+        })
+            planning.push({ template, shiftDate, userDispo })
+
+         
+    }
+    return planning
+
+}
+ 
+const userDisponible = await generatePlanning(new Date("2026-03-09"))
+console.log(JSON.stringify(userDisponible, null, 2))
+
+
+function getDateForDay(weekStart: Date, day: DayOfWeek) {
+  const days = {
+    Lundi: 0,
+    Mardi: 1,
+    Mercredi: 2,
+    Jeudi: 3,
+    Vendredi: 4,
+    Samedi: 5,
+    Dimanche: 6
+  }
+  const result = new Date(weekStart)
+  result.setDate(weekStart.getDate() + days[day])
+  return result
+
+}
+
+const testDate = getDateForDay(new Date("2025-03-10"), "Jeudi")
+console.log(testDate)
