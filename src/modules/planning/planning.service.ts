@@ -63,15 +63,44 @@ export async function generatePlanning(weekStart : Date){
                 return contrainte.startTime < template.endTime &&
                 contrainte.endTime > template.startTime 
             })
-               
             return !aUneContrainte
         })
-            planning.push({ template, shiftDate, userDispo })
 
-         
+        const debutMois = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1)
+        const finMois = new Date(weekStart.getFullYear(), weekStart.getMonth() +1, 0)
+        const usersWithHours = []
+        for (const user of userDispo){
+            const shift = await prisma.shift.findMany({
+                where : {userId : user.id , date : {gte :debutMois, lte:finMois}}
+            })
+            const hours = shift.reduce((total, shift)=> {
+                const start = parseInt(shift.startTime.split(':')[0])
+                const end = parseInt(shift.endTime.split(':')[0])
+                return total + (end - start)
+            }, 0)
+            usersWithHours.push({... user, heuresTravaillees : hours})
+        }
+         // trier par heures croissantes
+  usersWithHours.sort((a, b) => a.heuresTravaillees - b.heuresTravaillees)
+
+  // prendre seulement le nombre requis
+  const usersAssigned = usersWithHours.slice(0, template.quantityJob)
+    for (const user of usersAssigned) {
+    await createShift({
+        date: shiftDate,
+        startTime: template.startTime,
+        endTime: template.endTime,
+        job: template.job,
+        user: { connect: { id: user.id } },
+        ShiftTemplate: { connect: { id: template.id } }
+    })
+    }
+    const warning = usersAssigned.length < template.quantityJob ?
+    `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !`
+  : null
+            planning.push({ template, usersAssigned, warning })
     }
     return planning
-
 }
  
 const userDisponible = await generatePlanning(new Date("2026-03-09"))

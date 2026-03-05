@@ -14,6 +14,7 @@ model User {
   password   String?
   role       Role         @default(EMPLOYE)
   job        String?
+  contractHours Int @default(35)
   preference Preference[]
   contrainte Contrainte[]
   shift      Shift[]
