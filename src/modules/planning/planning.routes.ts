@@ -12,4 +12,5 @@ export async function shiftRoutes(fastify:FastifyInstance, option:object){
     fastify.post('/shiftstemplates', shiftCtrl.createShiftTemplate)
     fastify.put('/shiftstemplates/:id', shiftCtrl.updateShiftTemplate)
     fastify.delete('/shiftstemplates/:id', shiftCtrl.deleteShiftTemplate)
+    fastify.post('/planning/generate', shiftCtrl.generatePlanning)
 }

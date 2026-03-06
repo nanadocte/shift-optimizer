@@ -67,7 +67,8 @@ model Contrainte {
 
 model ShiftTemplate {
   id          Int       @id @default(autoincrement())
-  day         DayOfWeek
+  type        PreferenceContrainteType @default(RECURING)
+  day         DayOfWeek?
   date        DateTime?
   startTime   String
   endTime     String

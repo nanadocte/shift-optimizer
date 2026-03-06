@@ -21,8 +21,15 @@ export async function getAllShiftTemplates(request :FastifyRequest, reply:Fastif
 }
 
 export async function createShiftTemplate(request : CreateShiftTemplateRequest, reply:FastifyReply){
-const shiftTemplate = await planningService.createShiftTemplate(request.body)
-return shiftTemplate
+  const { type, date, day } = request.body
+ if (type === "PONCTUAL" && !date) {
+    return reply.status(400).send({ message: "Une date est obligatoire pour un shift ponctuel !" })
+  }
+  if (type === "RECURING" && !day) {
+    return reply.status(400).send({ message: "Un jour est obligatoire pour un shift récurrent !" })
+  }
+  const shiftTemplate = await planningService.createShiftTemplate(request.body)
+  return shiftTemplate
 }
 
 export async function updateShiftTemplate(request : UpdateShifttemplateRequest, reply:FastifyReply){
@@ -53,4 +60,22 @@ export async function updateShift(request : UpdateShiftRequest, reply:FastifyRep
 export async function deleteShift(request :DeleteShifttemplateRequest, reply: FastifyReply ){
     const shift = await planningService.deleteShift({id:Number(request.params.id)})
     return shift
+}
+
+
+
+// generated
+type GeneratePlanningBody = {
+  weekStart: string  
+  allowOverTime: boolean
+}
+
+type GeneratePlanningRequest = FastifyRequest<{Body : GeneratePlanningBody}>
+
+
+export async function generatePlanning(request : GeneratePlanningRequest, reply:FastifyReply){
+
+   const {weekStart, allowOverTime} = request.body
+    const planning = await planningService.generatePlanning(new Date(weekStart), allowOverTime)
+    return planning
 }

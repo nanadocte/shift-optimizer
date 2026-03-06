@@ -39,7 +39,7 @@ export async function deleteShiftTemplate(where:Prisma.ShiftTemplateWhereUniqueI
 
 
 
-export async function generatePlanning(weekStart : Date){
+export async function generatePlanning(weekStart : Date, allowOverTime : boolean=false){
     const shiftTemplate = await getAllShiftTemplate()
     const contraintes   = await UserService.getContrainte()
     const preferences   = await UserService.getPreference()
@@ -47,13 +47,22 @@ export async function generatePlanning(weekStart : Date){
     const planning = []
     
     for(const template of shiftTemplate){
-        const shiftDate = getDateForDay(weekStart, template.day)
+
+        if (template.type === "PONCTUAL" && template.date) {
+            const templateDate = new Date(template.date)
+            if (templateDate < weekStart || templateDate > new Date(weekStart.getTime()+ 7 * 24 * 60 * 60 * 1000)){
+                 continue
+            }
+        }
+        const shiftDate = template.type === "PONCTUAL" 
+  ? template.date! 
+  : getDateForDay(weekStart, template.day!)
+if (!shiftDate) continue 
         const userEligible = users.filter((user)=> user.job === template.job)
         const userDispo = userEligible.filter(user => {
             const aUneContrainte = contraintes.some(contrainte => {
                 if (contrainte.userId !== user.id) return false
-                console.log("template.day:", template.day)
-                console.log("contrainte.day:", contrainte.day)
+                
 
                 const bonJour = contrainte.type === "PONCTUAL" ? 
                 contrainte.date?.toDateString()=== shiftDate.toDateString() :
@@ -81,10 +90,12 @@ export async function generatePlanning(weekStart : Date){
             usersWithHours.push({... user, heuresTravaillees : hours})
         }
          // trier par heures croissantes
-  usersWithHours.sort((a, b) => a.heuresTravaillees - b.heuresTravaillees)
 
+        const usersSousContrat = allowOverTime ? usersWithHours :
+        usersWithHours.filter((user)=> user.heuresTravaillees < (user.contractHours/35)*151.67)
+        usersSousContrat.sort((a,b)=> a.heuresTravaillees - b.heuresTravaillees )
   // prendre seulement le nombre requis
-  const usersAssigned = usersWithHours.slice(0, template.quantityJob)
+  const usersAssigned = usersSousContrat.slice(0, template.quantityJob)
     for (const user of usersAssigned) {
     await createShift({
         date: shiftDate,
@@ -103,7 +114,7 @@ export async function generatePlanning(weekStart : Date){
     return planning
 }
  
-const userDisponible = await generatePlanning(new Date("2026-03-09"))
+ const userDisponible = await generatePlanning(new Date("2026-03-09"), true)
 console.log(JSON.stringify(userDisponible, null, 2))
 
 
