@@ -2,12 +2,12 @@ import { prisma } from "../../../lib/prisma";
 import { Prisma } from '../../../generated/prisma/client'
 import * as UserService from "../users/users.service"
 import { DayOfWeek } from "../../../generated/prisma/client";
+import { Contrainte, ShiftTemplate, User } from "../../../generated/prisma/browser";
 
 // shift
 
 export async function getAllShift(){
     return prisma.shift.findMany()
-
 }
 export async function createShift(data : Prisma.ShiftCreateInput){
      return prisma.shift.create({data})
@@ -19,25 +19,22 @@ export async function deleteShift(where:Prisma.ShiftWhereUniqueInput){
     return prisma.shift.delete({where})
 }
 
-// ShiftTemplater
+// ShiftTemplate
 
 export async function getAllShiftTemplate() {
 return prisma.shiftTemplate.findMany()
 }
-
 export async function createShiftTemplate(data:Prisma.ShiftTemplateCreateInput){
 return prisma.shiftTemplate.create({data})
 }
-
 export async function updateShiftTemplate(data: Prisma.ShiftTemplateUpdateInput ,where:Prisma.ShiftTemplateWhereUniqueInput){
     return prisma.shiftTemplate.update({data, where})
 }
-
 export async function deleteShiftTemplate(where:Prisma.ShiftTemplateWhereUniqueInput){
     return prisma.shiftTemplate.delete({where})
 }
 
-
+// Generate Planning
 
 export async function generatePlanning(weekStart : Date, allowOverTime : boolean=false){
     const shiftTemplate = await getAllShiftTemplate()
@@ -48,17 +45,43 @@ export async function generatePlanning(weekStart : Date, allowOverTime : boolean
     
     for(const template of shiftTemplate){
 
+    if (!skipWrongTemplate(template, weekStart)) continue 
+
+     const shiftDate = template.type === "PONCTUAL" 
+        ? template.date
+        : getDateForDay(weekStart, template.day!)
+        if (!shiftDate) continue 
+        
+    const userDispo = filterContrainte(shiftDate, users, contraintes, template)
+    const usersAssigned = await filterHours(shiftDate ,allowOverTime, template, weekStart, userDispo)
+    const warning = usersAssigned.length < template.quantityJob ?
+      `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !`
+      : null
+
+    planning.push({ template, usersAssigned, warning })
+    }
+    return planning
+}
+ 
+//  const userDisponible = await generatePlanning(new Date("2026-03-09"), true)
+// console.log(JSON.stringify(userDisponible, null, 2))
+
+
+function skipWrongTemplate(template : ShiftTemplate, weekStart : Date ){
+// Garder la date ponctuelle seulement si dans la weekstart
         if (template.type === "PONCTUAL" && template.date) {
             const templateDate = new Date(template.date)
-            if (templateDate < weekStart || templateDate > new Date(weekStart.getTime()+ 7 * 24 * 60 * 60 * 1000)){
-                 continue
-            }
+            return !(templateDate < weekStart || templateDate > new Date(weekStart.getTime()+ 7 * 24 * 60 * 60 * 1000))
         }
-        const shiftDate = template.type === "PONCTUAL" 
-  ? template.date! 
-  : getDateForDay(weekStart, template.day!)
-if (!shiftDate) continue 
-        const userEligible = users.filter((user)=> user.job === template.job)
+        return true
+        }
+
+ function filterContrainte(shiftDate : Date, users : any[], contraintes : Contrainte[], template : ShiftTemplate){
+
+    // Filtrer personnes apte au job
+            const userEligible = users.filter((user)=> user.job === template.job)
+
+    // Filtrer ceux n'ayant pas de contraintes 
         const userDispo = userEligible.filter(user => {
             const aUneContrainte = contraintes.some(contrainte => {
                 if (contrainte.userId !== user.id) return false
@@ -74,7 +97,11 @@ if (!shiftDate) continue
             })
             return !aUneContrainte
         })
+        return userDispo
+        }
 
+async function filterHours (shiftDate : Date, allowOverTime : boolean = false, template : ShiftTemplate, weekStart : Date, userDispo : User[]){
+        // Filter par heuresTravaillées
         const debutMois = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1)
         const finMois = new Date(weekStart.getFullYear(), weekStart.getMonth() +1, 0)
         const usersWithHours = []
@@ -90,11 +117,11 @@ if (!shiftDate) continue
             usersWithHours.push({... user, heuresTravaillees : hours})
         }
          // trier par heures croissantes
-
         const usersSousContrat = allowOverTime ? usersWithHours :
         usersWithHours.filter((user)=> user.heuresTravaillees < (user.contractHours/35)*151.67)
         usersSousContrat.sort((a,b)=> a.heuresTravaillees - b.heuresTravaillees )
-  // prendre seulement le nombre requis
+
+        // prendre seulement le nombre requis
   const usersAssigned = usersSousContrat.slice(0, template.quantityJob)
     for (const user of usersAssigned) {
     await createShift({
@@ -106,17 +133,8 @@ if (!shiftDate) continue
         ShiftTemplate: { connect: { id: template.id } }
     })
     }
-    const warning = usersAssigned.length < template.quantityJob ?
-    `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !`
-  : null
-            planning.push({ template, usersAssigned, warning })
-    }
-    return planning
+    return usersAssigned
 }
- 
- const userDisponible = await generatePlanning(new Date("2026-03-09"), true)
-console.log(JSON.stringify(userDisponible, null, 2))
-
 
 function getDateForDay(weekStart: Date, day: DayOfWeek) {
   const days = {
@@ -134,5 +152,5 @@ function getDateForDay(weekStart: Date, day: DayOfWeek) {
 
 }
 
-const testDate = getDateForDay(new Date("2025-03-10"), "Jeudi")
-console.log(testDate)
+// const testDate = getDateForDay(new Date("2025-03-10"), "Jeudi")
+// console.log(testDate)
