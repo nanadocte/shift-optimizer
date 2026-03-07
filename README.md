@@ -73,41 +73,41 @@ npx prisma studio
 ### Auth
 | Méthode | Route | Description | Auth |
 |---------|-------|-------------|------|
-| POST | `/auth/login` | Connexion | ❌ |
+| POST | `/auth/login` | Connexion | NON |
 
 ### Utilisateurs
 | Méthode | Route | Description | Auth |
 |---------|-------|-------------|------|
-| GET | `/users` | Tous les utilisateurs | ✅ |
-| GET | `/users/:id` | Un utilisateur | ✅ |
-| POST | `/users` | Créer un utilisateur | ✅ Admin |
-| PUT | `/users/:id` | Modifier un utilisateur | ✅ Admin/Owner |
-| DELETE | `/users/:id` | Supprimer un utilisateur | ✅ Admin/Owner |
+| GET | `/users` | Tous les utilisateurs | OUI |
+| GET | `/users/:id` | Un utilisateur | OUI |
+| POST | `/users` | Créer un utilisateur | OUI Admin |
+| PUT | `/users/:id` | Modifier un utilisateur | OUI Admin/Owner |
+| DELETE | `/users/:id` | Supprimer un utilisateur | OUI Admin/Owner |
 
 ### Préférences & Contraintes
 | Méthode | Route | Description | Auth |
 |---------|-------|-------------|------|
-| GET | `/preferences` | Toutes les préférences | ✅ |
-| POST | `/preferences` | Créer une préférence | ✅ |
-| PUT | `/preferences/:id` | Modifier | ✅ |
-| DELETE | `/preferences/:id` | Supprimer | ✅ |
-| GET | `/contraintes` | Toutes les contraintes | ✅ |
-| POST | `/contraintes` | Créer une contrainte | ✅ |
-| PUT | `/contraintes/:id` | Modifier | ✅ |
-| DELETE | `/contraintes/:id` | Supprimer | ✅ |
+| GET | `/preferences` | Toutes les préférences | OUI |
+| POST | `/preferences` | Créer une préférence | OUI |
+| PUT | `/preferences/:id` | Modifier | OUI |
+| DELETE | `/preferences/:id` | Supprimer | OUI |
+| GET | `/contraintes` | Toutes les contraintes | OUI |
+| POST | `/contraintes` | Créer une contrainte | OUI |
+| PUT | `/contraintes/:id` | Modifier | OUI |
+| DELETE | `/contraintes/:id` | Supprimer | OUI |
 
 ### Planning
 | Méthode | Route | Description | Auth |
 |---------|-------|-------------|------|
-| GET | `/shifts` | Tous les shifts | ✅ |
-| POST | `/shifts` | Créer un shift | ✅ |
-| PUT | `/shifts/:id` | Modifier un shift | ✅ |
-| DELETE | `/shifts/:id` | Supprimer un shift | ✅ |
-| GET | `/shiftstemplates` | Tous les templates | ✅ |
-| POST | `/shiftstemplates` | Créer un template | ✅ Admin |
-| PUT | `/shiftstemplates/:id` | Modifier | ✅ Admin |
-| DELETE | `/shiftstemplates/:id` | Supprimer | ✅ Admin |
-| POST | `/planning/generate` | Générer le planning | ✅ Admin |
+| GET | `/shifts` | Tous les shifts | OUI |
+| POST | `/shifts` | Créer un shift | OUI |
+| PUT | `/shifts/:id` | Modifier un shift | OUI |
+| DELETE | `/shifts/:id` | Supprimer un shift | OUI |
+| GET | `/shiftstemplates` | Tous les templates | OUI |
+| POST | `/shiftstemplates` | Créer un template | OUI Admin |
+| PUT | `/shiftstemplates/:id` | Modifier | OUI Admin |
+| DELETE | `/shiftstemplates/:id` | Supprimer | OUI Admin |
+| POST | `/planning/generate` | Générer le planning | OUI Admin |
 
 ### Générer un planning
 
@@ -127,7 +127,7 @@ L'algorithme génère automatiquement un planning hebdomadaire en respectant :
 
 1. **Le job requis** — seuls les employés avec le bon poste sont éligibles
 2. **Les contraintes** — indisponibilités récurrentes ou ponctuelles avec vérification des chevauchements horaires
-3. **Les heures contractuelles** — calcul mensuel légal (151.67h pour un 35h) 
+3. **Les heures contractuelles** — calcul mensuel légal (151.67h pour un 35h et temps partiel) 
 4. **L'équité** — priorité aux employés ayant le moins d'heures ce mois
 5. **Les événements ponctuels** — ShiftTemplates avec date précise
 

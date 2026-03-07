@@ -1,6 +1,6 @@
 import * as planningService from './planning.service'
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { Prisma } from '../../../generated/prisma/client'
+import { Prisma, User, ShiftTemplate } from '../../../generated/prisma/client'
 
 type ShiftTemplateBody = Prisma.ShiftTemplateCreateInput
 type ShiftBody = Prisma.ShiftCreateInput
@@ -69,7 +69,6 @@ type GeneratePlanningBody = {
   weekStart: string  
   allowOverTime: boolean
 }
-
 type GeneratePlanningRequest = FastifyRequest<{Body : GeneratePlanningBody}>
 
 
@@ -78,4 +77,18 @@ export async function generatePlanning(request : GeneratePlanningRequest, reply:
    const {weekStart, allowOverTime} = request.body
     const planning = await planningService.generatePlanning(new Date(weekStart), allowOverTime)
     return planning
+}
+
+type PlanningItem = {
+  template: ShiftTemplate
+  shiftDate: Date
+  usersAssigned: User[]
+  warning: string | null
+}
+
+type SavePlanningRequest = FastifyRequest<{ Body: PlanningItem[] }>
+
+export async function savePlanning(request: SavePlanningRequest, reply: FastifyReply) {
+  const planning = await planningService.savePlanning(request.body)
+  return planning
 }

@@ -2,7 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { Prisma } from '../../../generated/prisma/client'
 import * as UserService from "../users/users.service"
 import { DayOfWeek } from "../../../generated/prisma/client";
-import { Contrainte, ShiftTemplate, User } from "../../../generated/prisma/browser";
+import { Contrainte, ShiftTemplate, User, Shift } from "../../../generated/prisma/browser";
 
 // shift
 
@@ -54,18 +54,41 @@ export async function generatePlanning(weekStart : Date, allowOverTime : boolean
         
     const userDispo = filterContrainte(shiftDate, users, contraintes, template)
     const usersAssigned = await filterHours(shiftDate ,allowOverTime, template, weekStart, userDispo)
+    
+    const nbHeuresSupDispo =   !allowOverTime ? ` ${userDispo.length - usersAssigned.length} ${template.job}(s) disponibles en heures supplémentaires.` : ''
     const warning = usersAssigned.length < template.quantityJob ?
-      `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !`
-      : null
+      `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !${nbHeuresSupDispo}`
+      : ''
 
-    planning.push({ template, usersAssigned, warning })
+    planning.push({ template, shiftDate, usersAssigned, warning })
     }
     return planning
 }
  
-//  const userDisponible = await generatePlanning(new Date("2026-03-09"), true)
+// const userDisponible = await generatePlanning(new Date("2026-03-01"), false)
 // console.log(JSON.stringify(userDisponible, null, 2))
 
+type PlanningItem = {
+  template: ShiftTemplate
+  shiftDate: Date
+  usersAssigned: any[]
+  warning: string | null
+}
+export async function savePlanning(planning : PlanningItem[]){
+      console.log("savePlanning appelé !")
+for (const item of planning) {
+        console.log("shiftDate:", item.shiftDate)
+    for(const user of item.usersAssigned){
+     await createShift({
+        date: new Date(item.shiftDate),
+        startTime: item.template.startTime,
+        endTime: item.template.endTime,
+        job: item.template.job,
+        user: { connect: { id: user.id } },
+        ShiftTemplate: { connect: { id: item.template.id } }
+    })
+    }}
+}
 
 function skipWrongTemplate(template : ShiftTemplate, weekStart : Date ){
 // Garder la date ponctuelle seulement si dans la weekstart
@@ -77,7 +100,6 @@ function skipWrongTemplate(template : ShiftTemplate, weekStart : Date ){
         }
 
  function filterContrainte(shiftDate : Date, users : any[], contraintes : Contrainte[], template : ShiftTemplate){
-
     // Filtrer personnes apte au job
             const userEligible = users.filter((user)=> user.job === template.job)
 
@@ -86,7 +108,6 @@ function skipWrongTemplate(template : ShiftTemplate, weekStart : Date ){
             const aUneContrainte = contraintes.some(contrainte => {
                 if (contrainte.userId !== user.id) return false
                 
-
                 const bonJour = contrainte.type === "PONCTUAL" ? 
                 contrainte.date?.toDateString()=== shiftDate.toDateString() :
                 contrainte.day === template.day
@@ -123,16 +144,7 @@ async function filterHours (shiftDate : Date, allowOverTime : boolean = false, t
 
         // prendre seulement le nombre requis
   const usersAssigned = usersSousContrat.slice(0, template.quantityJob)
-    for (const user of usersAssigned) {
-    await createShift({
-        date: shiftDate,
-        startTime: template.startTime,
-        endTime: template.endTime,
-        job: template.job,
-        user: { connect: { id: user.id } },
-        ShiftTemplate: { connect: { id: template.id } }
-    })
-    }
+  
     return usersAssigned
 }
 

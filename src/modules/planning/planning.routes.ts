@@ -13,4 +13,5 @@ export async function shiftRoutes(fastify:FastifyInstance, option:object){
     fastify.put('/shiftstemplates/:id', shiftCtrl.updateShiftTemplate)
     fastify.delete('/shiftstemplates/:id', shiftCtrl.deleteShiftTemplate)
     fastify.post('/planning/generate', shiftCtrl.generatePlanning)
+fastify.post('/planning/save', { preHandler: fastify.authentificate }, shiftCtrl.savePlanning as any)
 }
