@@ -2,7 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { Prisma } from '../../../generated/prisma/client'
 import * as UserService from "../users/users.service"
 import { DayOfWeek } from "../../../generated/prisma/client";
-import { Contrainte, ShiftTemplate, User, Shift } from "../../../generated/prisma/browser";
+import { Contrainte, ShiftTemplate, User } from "../../../generated/prisma/browser";
 
 // shift
 
@@ -52,7 +52,7 @@ export async function generatePlanning(weekStart : Date, allowOverTime : boolean
         : getDateForDay(weekStart, template.day!)
         if (!shiftDate) continue 
         
-    const userDispo = filterContrainte(shiftDate, users, contraintes, template)
+    const userDispo = await checkShiftDispo(shiftDate, users, contraintes, template)
     const usersAssigned = await filterHours(shiftDate ,allowOverTime, template, weekStart, userDispo)
     
     const nbHeuresSupDispo =   !allowOverTime ? ` ${userDispo.length - usersAssigned.length} ${template.job}(s) disponibles en heures supplémentaires.` : ''
@@ -162,6 +162,37 @@ function getDateForDay(weekStart: Date, day: DayOfWeek) {
   result.setDate(weekStart.getDate() + days[day])
   return result
 
+}
+
+async function checkShiftDispo(shiftDate : Date, users : any[], contraintes: Contrainte[],template:ShiftTemplate){
+    const userDispo = filterContrainte(shiftDate, users, contraintes,template)
+    const startOfDay = new Date(shiftDate)
+startOfDay.setUTCHours(0, 0, 0, 0)
+const endOfDay = new Date(shiftDate)
+endOfDay.setUTCHours(23, 59, 59, 999)
+  const shiftsDejaAssignes = await prisma.shift.count({
+    where: {
+      shiftTemplateId: template.id,
+      date: { gte: startOfDay, lte: endOfDay }
+    }
+  })
+
+  // Si déjà complet → retourner tableau vide
+  if (shiftsDejaAssignes >= template.quantityJob) return []
+    const userSansShift =[]
+    for (const user of userDispo ){
+    const shiftExistant =  await prisma.shift.findFirst({
+        where : {
+            userId : user.id,
+            date : { gte: startOfDay, lte: endOfDay }
+        }
+    })
+    console.log(`User ${user.name} - shiftExistant:`, shiftExistant?.date)
+    console.log(`startOfDay:`, startOfDay, `endOfDay:`, endOfDay)
+    
+    if(!shiftExistant) userSansShift.push(user)
+}
+return userSansShift
 }
 
 // const testDate = getDateForDay(new Date("2025-03-10"), "Jeudi")
