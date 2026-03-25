@@ -73,8 +73,9 @@ type GeneratePlanningRequest = FastifyRequest<{Body : GeneratePlanningBody}>
 
 
 export async function generatePlanning(request : GeneratePlanningRequest, reply:FastifyReply){
-
+        
    const {weekStart, allowOverTime} = request.body
+   
     const planning = await planningService.generatePlanning(new Date(weekStart), allowOverTime)
     return planning
 }

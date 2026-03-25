@@ -37,31 +37,109 @@ export async function deleteShiftTemplate(where:Prisma.ShiftTemplateWhereUniqueI
 // Generate Planning
 
 export async function generatePlanning(weekStart : Date, allowOverTime : boolean=false){
+     weekStart = new Date(weekStart)
+  weekStart.setUTCHours(0, 0, 0, 0)
     const shiftTemplate = await getAllShiftTemplate()
     const contraintes   = await UserService.getContrainte()
     const preferences   = await UserService.getPreference()
     const users         = await UserService.getAllUsers()
     const planning = []
-    
-    for(const template of shiftTemplate){
 
-    if (!skipWrongTemplate(template, weekStart)) continue 
-
-     const shiftDate = template.type === "PONCTUAL" 
+    const slots = shiftTemplate
+  .filter(t => skipWrongTemplate(t, weekStart))
+  .map(template => {
+    const shiftDate =
+      template.type === "PONCTUAL"
         ? template.date
         : getDateForDay(weekStart, template.day!)
-        if (!shiftDate) continue 
-        
-    const userDispo = await checkShiftDispo(shiftDate, users, contraintes, template)
-    const usersAssigned = await filterHours(shiftDate ,allowOverTime, template, weekStart, userDispo)
-    
-    const nbHeuresSupDispo =   !allowOverTime ? ` ${userDispo.length - usersAssigned.length} ${template.job}(s) disponibles en heures supplémentaires.` : ''
-    const warning = usersAssigned.length < template.quantityJob ?
-      `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) !${nbHeuresSupDispo}`
-      : ''
 
-    planning.push({ template, shiftDate, usersAssigned, warning })
+    if (!shiftDate) return null
+
+    return {
+      template,
+      shiftDate: new Date(shiftDate)
     }
+  })
+  .filter((x): x is { template: any; shiftDate: Date } => x !== null)
+  .sort((a, b) => {
+  const diff =
+    new Date(a.shiftDate).getTime() -
+    new Date(b.shiftDate).getTime()
+
+  if (diff !== 0) return diff
+
+  return a.template.startTime.localeCompare(b.template.startTime)
+})
+
+
+    type MemoryShift = {
+  userId: number
+  date: Date
+  startTime: string
+  endTime: string
+}
+ const state = {
+  dbShifts: await prisma.shift.findMany(),
+  memoryShifts: [] as MemoryShift[]
+}
+
+
+for (const slot of slots) {
+
+  const { template, shiftDate } = slot
+
+  if (!shiftDate) continue
+
+  const userDispo = await checkShiftDispo(
+    shiftDate,
+    users,
+    contraintes,
+    template,
+    state.memoryShifts
+  )
+
+  const usersAssigned = await filterHours(
+    shiftDate,
+    allowOverTime,
+    template,
+    weekStart,
+    userDispo,
+    state.dbShifts,
+    state.memoryShifts
+  )
+
+  for (const user of usersAssigned) {
+    state.memoryShifts.push({
+      userId: user.id,
+      date: new Date(shiftDate),
+      startTime: template.startTime,
+      endTime: template.endTime,
+    })
+  }
+
+  const nbHeuresSupDispo = !allowOverTime
+    ? `${userDispo.length - usersAssigned.length} ${template.job}(s) dispo`
+    : ""
+
+  const warning =
+    usersAssigned.length < template.quantityJob
+      ? `Manque ${template.quantityJob - usersAssigned.length} ${template.job}(s) ! ${nbHeuresSupDispo}`
+      : null
+
+  planning.push({
+    template,
+    shiftDate,
+    usersAssigned,
+    warning
+  })
+
+  console.log(template.day, shiftDate.toISOString())
+}
+
+    planning.sort((a, b) =>
+    new Date(a.shiftDate).getTime() - new Date(b.shiftDate).getTime()
+    )
+    
     return planning
 }
  
@@ -121,79 +199,203 @@ function skipWrongTemplate(template : ShiftTemplate, weekStart : Date ){
         return userDispo
         }
 
-async function filterHours (shiftDate : Date, allowOverTime : boolean = false, template : ShiftTemplate, weekStart : Date, userDispo : User[]){
-        // Filter par heuresTravaillées
-        const debutMois = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1)
-        const finMois = new Date(weekStart.getFullYear(), weekStart.getMonth() +1, 0)
-        const usersWithHours = []
-        for (const user of userDispo){
-            const shift = await prisma.shift.findMany({
-                where : {userId : user.id , date : {gte :debutMois, lte:finMois}}
-            })
-            const hours = shift.reduce((total, shift)=> {
-                const start = parseInt(shift.startTime.split(':')[0])
-                const end = parseInt(shift.endTime.split(':')[0])
-                return total + (end - start)
-            }, 0)
-            usersWithHours.push({... user, heuresTravaillees : hours})
-        }
-         // trier par heures croissantes
-        const usersSousContrat = allowOverTime ? usersWithHours :
-        usersWithHours.filter((user)=> user.heuresTravaillees < (user.contractHours/35)*151.67)
-        usersSousContrat.sort((a,b)=> a.heuresTravaillees - b.heuresTravaillees )
+async function filterHours(
+  shiftDate: Date,
+  allowOverTime: boolean = false,
+  template: ShiftTemplate,
+  weekStart: Date,
+  userDispo: User[],
+  userShifts: { date: Date; userId: number | null }[],
+  shiftsEnMemoire: {
+    userId: number
+    date: Date
+    startTime: string
+    endTime: string
+  }[]
+) {
+  const debutMois = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1)
+  const finMois = new Date(weekStart.getFullYear(), weekStart.getMonth() + 1, 0)
+  const usersWithHours = []
 
-        // prendre seulement le nombre requis
-  const usersAssigned = usersSousContrat.slice(0, template.quantityJob)
-  
-    return usersAssigned
+  for (const user of userDispo) {
+    // Heures du mois
+    const shiftsFromDB = await prisma.shift.findMany({
+      where: { userId: user.id, date: { gte: debutMois, lte: finMois } },
+    })
+
+    const hoursFromDB = shiftsFromDB.reduce((total, shift) => {
+      const start = parseInt(shift.startTime.split(':')[0])
+      const end = parseInt(shift.endTime.split(':')[0])
+      return total + (end - start)
+    }, 0)
+
+    const hoursFromMemory = shiftsEnMemoire
+      .filter(s => s.userId === user.id)
+      .reduce((total, s) => {
+        const start = parseInt(s.startTime.split(':')[0])
+        const end = parseInt(s.endTime.split(':')[0])
+        return total + (end - start)
+      }, 0)
+
+    // Shifts pour la règle des jours consécutifs (fenêtre ±10 jours)
+   // Remplace la fenêtre ±10 jours par des dates UTC explicites
+const dix = 10 * 24 * 60 * 60 * 1000
+const fenetreDebut = new Date(shiftDate)
+fenetreDebut.setUTCHours(0, 0, 0, 0)
+fenetreDebut.setTime(fenetreDebut.getTime() - dix)
+
+const fenetreFin = new Date(shiftDate)
+fenetreFin.setUTCHours(23, 59, 59, 999)
+fenetreFin.setTime(fenetreFin.getTime() + dix)
+
+const shiftsFromDBForRest = await prisma.shift.findMany({
+  where: {
+    userId: user.id,
+    date: { gte: fenetreDebut, lte: fenetreFin },
+  },
+  select: { date: true, userId: true },
+})
+
+    // Combiner DB + mémoire pour les jours consécutifs
+    const shiftsForRest = [
+      ...shiftsFromDBForRest,
+      ...shiftsEnMemoire
+        .filter(s => s.userId === user.id)
+        .map(s => ({ date: new Date(s.date), userId: s.userId })),
+    ]
+
+    usersWithHours.push({
+      ...user,
+      heuresTravaillees: hoursFromDB + hoursFromMemory,
+      shiftsForRest,
+    })
+  }
+
+  const usersSousContrat = allowOverTime
+    ? usersWithHours
+    : usersWithHours.filter(
+        user => user.heuresTravaillees < (user.contractHours / 35) * 151.67
+      )
+
+  const usersRestOk = usersSousContrat.filter(user =>
+    !hasTooManyConsecutiveDays(user.shiftsForRest, shiftDate)
+  )
+
+  usersRestOk.sort((a, b) => a.heuresTravaillees - b.heuresTravaillees)
+
+  return usersRestOk.slice(0, template.quantityJob)
 }
 
 function getDateForDay(weekStart: Date, day: DayOfWeek) {
-  const days = {
-    Lundi: 0,
-    Mardi: 1,
-    Mercredi: 2,
-    Jeudi: 3,
-    Vendredi: 4,
-    Samedi: 5,
-    Dimanche: 6
-  }
+  const days = { Lundi: 0, Mardi: 1, Mercredi: 2, Jeudi: 3, Vendredi: 4, Samedi: 5, Dimanche: 6 }
   const result = new Date(weekStart)
-  result.setDate(weekStart.getDate() + days[day])
+  result.setUTCDate(weekStart.getUTCDate() + days[day]) // ✅ setUTCDate au lieu de setDate
+  result.setUTCHours(0, 0, 0, 0)
   return result
-
 }
 
-async function checkShiftDispo(shiftDate : Date, users : any[], contraintes: Contrainte[],template:ShiftTemplate){
-    const userDispo = filterContrainte(shiftDate, users, contraintes,template)
-    const startOfDay = new Date(shiftDate)
-startOfDay.setUTCHours(0, 0, 0, 0)
-const endOfDay = new Date(shiftDate)
-endOfDay.setUTCHours(23, 59, 59, 999)
-  const shiftsDejaAssignes = await prisma.shift.count({
-    where: {
-      shiftTemplateId: template.id,
-      date: { gte: startOfDay, lte: endOfDay }
-    }
+async function checkShiftDispo(
+  shiftDate: Date,
+  users: any[],
+  contraintes: Contrainte[],
+  template: ShiftTemplate,
+  shiftsEnMemoire: { userId: number; date: Date; startTime: string; endTime: string }[]
+) {
+  const startOfDay = new Date(shiftDate)
+  startOfDay.setUTCHours(0, 0, 0, 0)
+  const endOfDay = new Date(shiftDate)
+  endOfDay.setUTCHours(23, 59, 59, 999)
+
+  const userDispo = filterContrainte(shiftDate, users, contraintes, template)
+
+  // Compter les shifts déjà en mémoire pour ce template + ce jour
+  const shiftsEnMemoirePourTemplate = shiftsEnMemoire.filter(s => {
+    const d = new Date(s.date)
+    return d >= startOfDay && d <= endOfDay
+    // Note : on ne peut pas filtrer par templateId ici car shiftsEnMemoire
+    // ne le stocke pas — on considère qu'un user ne peut avoir qu'un shift par jour
   })
 
-  // Si déjà complet → retourner tableau vide
+  const shiftsDejaAssignesDB = await prisma.shift.count({
+    where: {
+      shiftTemplateId: template.id,
+      date: { gte: startOfDay, lte: endOfDay },
+    },
+  })
+
+  const shiftsDejaAssignes = shiftsDejaAssignesDB + shiftsEnMemoirePourTemplate.length
+
   if (shiftsDejaAssignes >= template.quantityJob) return []
-    const userSansShift =[]
-    for (const user of userDispo ){
-    const shiftExistant =  await prisma.shift.findFirst({
-        where : {
-            userId : user.id,
-            date : { gte: startOfDay, lte: endOfDay }
-        }
+
+  const userSansShift = []
+
+  for (const user of userDispo) {
+    // Vérifier en mémoire
+    const dejaEnMemoire = shiftsEnMemoire.some(
+      s =>
+        s.userId === user.id &&
+        new Date(s.date) >= startOfDay &&
+        new Date(s.date) <= endOfDay
+    )
+    if (dejaEnMemoire) continue
+
+    // Vérifier en DB
+    const shiftExistant = await prisma.shift.findFirst({
+      where: {
+        userId: user.id,
+        date: { gte: startOfDay, lte: endOfDay },
+      },
     })
-    console.log(`User ${user.name} - shiftExistant:`, shiftExistant?.date)
-    console.log(`startOfDay:`, startOfDay, `endOfDay:`, endOfDay)
-    
-    if(!shiftExistant) userSansShift.push(user)
+    if (!shiftExistant) userSansShift.push(user)
+  }
+
+  return userSansShift
 }
-return userSansShift
+//chaque user doit avoir
+// 2 jours consécutifs sans shift
+// dans la semaine
+
+function getDayNumber(date: Date) {
+  return Math.floor(date.getTime() / (1000 * 60 * 60 * 24))
 }
 
-// const testDate = getDateForDay(new Date("2025-03-10"), "Jeudi")
-// console.log(testDate)
+function hasTooManyConsecutiveDays(
+  userShifts: { date: Date | string; userId?: number | null }[],
+  shiftDate: Date
+): boolean {
+  const current = getDayNumber(new Date(shiftDate))
+  
+  const days = new Set(
+    userShifts.map(s => getDayNumber(new Date(s.date)))
+  )
+
+  // Simuler l'ajout du jour courant
+  days.add(current)
+
+  // Compter la séquence consécutive qui inclut current
+  let streak = 0
+  
+  // Trouver le début de la séquence
+  let start = current
+  while (days.has(start - 1)) start--
+  
+  // Compter depuis le début
+  let cursor = start
+  while (days.has(cursor)) {
+    streak++
+    cursor++
+  }
+
+  return streak > 6
+}
+
+
+
+
+
+
+// 48h supp max max 
+// + ajouter option max 35h - 42 ; 42h - 48h 
+// > 220 c'est chaud 
+
+//Oublie le shhuift permanent si ponctuel (fin pas oublie mais t'as capté )
