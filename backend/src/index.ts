@@ -5,10 +5,17 @@ import {authRoutes} from "./modules/auth/auth.routes"
 import { shiftRoutes } from "./modules/planning/planning.routes";
 import fjwt from '@fastify/jwt'
 import { authentificate } from "./plugins/authentification";
+import cors from '@fastify/cors'
+
 
 
 
 const fastify = Fastify({logger:true})
+
+await fastify.register(cors, {
+  origin: "http://localhost:5173", 
+  methods: ["GET", "POST", "PUT", "DELETE"]
+})
 
 
 fastify.get('/', async(request, reply) => {
