@@ -3,11 +3,10 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, #4f46e5 0%, #c92fa0 100%),
-    radial-gradient(circle at top right, #9060ff 0%, #4f46e5 100%),
-    radial-gradient(circle at bottom left, #9060ff 0%, #5b55c8 100%),
-    radial-gradient(circle at bottom right, #5850ed 0%, #c92fa0 100%);
-  background-blend-mode: screen;
-  background-size: cover;
+  background: linear-gradient(
+    135deg,
+    #5b54da 0%,
+    #a231e890 60%,
+    #8454f3c6 100%
+  );
 }

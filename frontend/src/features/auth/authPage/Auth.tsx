@@ -3,11 +3,19 @@ import Form from '../components/FormLogin'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faStar } from '@fortawesome/free-solid-svg-icons'
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 
 function Auth() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+
   return (
-    <div className="modal-bg flex min-h-screen items-center justify-center bg-[radial-gradient(at_top_left,#4f46e5,transparent_60%),radial-gradient(at_top_right,#8b5cf6,transparent_60%),radial-gradient(at_bottom_left,#8b5cf6,transparent_80%),radial-gradient(at_bottom_right,#4f46e5,transparent_60%)] p-4 bg-blend-multiply">
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -60 }}
+      transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+      className="modal-bg flex min-h-screen items-center justify-center p-4"
+    >
       <div className="flex w-full max-w-2xl rounded-2xl shadow-xl backdrop-blur-xl">
         {/* Colonne gauche */}
         <div className="flex w-1/2 flex-1 flex-col rounded-l-2xl bg-white/70 p-6 backdrop-blur-xl">
@@ -51,7 +59,13 @@ function Auth() {
 
         {/* Colonne droite */}
         <div className="flex w-1/2 flex-1 flex-col rounded-r-2xl bg-white/80 p-6 backdrop-blur-xl">
-          <div className="mb-6">
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 1, x: 0 }}
+            transition={{ duration: 2, ease: 'easeInOut' }}
+            className="mb-6"
+          >
             {mode === 'login' && (
               <h2 className="text-2xl font-bold">Welcome Back</h2>
             )}
@@ -59,7 +73,8 @@ function Auth() {
               <h2 className="text-2xl font-bold">Welcome Here</h2>
             )}{' '}
             <p className="text-sm text-gray-600">Access your portal</p>
-          </div>
+          </motion.div>
+
           <Form mode={mode} setMode={setMode} />
 
           <button
@@ -72,7 +87,7 @@ function Auth() {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

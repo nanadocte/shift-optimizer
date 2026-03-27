@@ -7,7 +7,6 @@ export interface User {
   email: string
   job: string
 }
-const token = localStorage.getItem('token')
 
 export function GetUser({
   users,
@@ -20,6 +19,8 @@ export function GetUser({
 }) {
   useEffect(() => {
     const fetchUser = async () => {
+      const token = localStorage.getItem('token')
+
       try {
         const response = await fetch(`http://localhost:3000/users`, {
           headers: {
@@ -37,13 +38,45 @@ export function GetUser({
       }
     }
     fetchUser()
-  }, [setUsers])
+  }, [])
 
   return (
     <div className="grid auto-cols-[200px] grid-flow-col gap-4 overflow-x-auto p-4">
       {users.map((user) => (
         <UserCard key={user.id} user={user} onClick={() => onSelect(user)} />
       ))}
+    </div>
+  )
+}
+export function DeleteUser({
+  user,
+  onDelete,
+}: {
+  user: User
+  onDelete: (u: User) => void
+}) {
+  const deleteUser = async () => {
+    const token = localStorage.getItem('token')
+
+    try {
+      const chargeUtile = JSON.stringify(user.id)
+      const response = await fetch(`http://localhost:3000/users/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Contente-Type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: chargeUtile,
+      })
+      await response.json()
+      onDelete(user)
+    } catch (error) {
+      console.error('Error deleting user:', error)
+    }
+  }
+  return (
+    <div>
+      <button onClick={deleteUser}>Delete</button>
     </div>
   )
 }
@@ -68,6 +101,8 @@ export function UpdateUser({
 
   const updateUser = async () => {
     try {
+      const token = localStorage.getItem('token')
+
       const chargeUtile = JSON.stringify({ email, name, job })
       const response = await fetch(`http://localhost:3000/users/${user.id}`, {
         method: 'PUT',
@@ -98,6 +133,24 @@ export function UpdateUser({
           value={job}
           placeholder={user.job || 'Job'}
           onChange={(e) => setJob(e.target.value)}
+        ></input>
+      </div>{' '}
+      <div>
+        <label htmlFor="name">Name</label>
+        <input
+          id="name"
+          value={name}
+          placeholder={user.name}
+          onChange={(e) => setName(e.target.value)}
+        ></input>
+      </div>{' '}
+      <div>
+        <label htmlFor="email">email</label>
+        <input
+          id="email"
+          value={email}
+          placeholder={user.email}
+          onChange={(e) => setEmail(e.target.value)}
         ></input>
       </div>{' '}
       <button type="submit">Change</button>

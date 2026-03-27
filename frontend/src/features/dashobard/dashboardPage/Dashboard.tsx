@@ -1,7 +1,8 @@
 import { GetUser } from '../components/users/ManageUser'
-import { UpdateUser } from '../components/users/ManageUser'
+import { UpdateUser, DeleteUser } from '../components/users/ManageUser'
 import { useState } from 'react'
 import type { User } from '../components/users/ManageUser'
+import { motion } from 'framer-motion'
 
 function Dashboard() {
   const [users, setUsers] = useState<User[]>([])
@@ -13,15 +14,28 @@ function Dashboard() {
     )
     setSelectedUser(updatedUser)
   }
+  const handleDeleteUser = (deletedUser: User) => {
+    setUsers((prev) => prev.filter((u) => u.id !== deletedUser.id))
+    setSelectedUser(null)
+  }
 
   return (
-    <div className="modal-bg flex min-h-screen items-center justify-center bg-[radial-gradient(at_top_left,#4f46e5,transparent_60%),radial-gradient(at_top_right,#8b5cf6,transparent_60%),radial-gradient(at_bottom_left,#8b5cf6,transparent_80%),radial-gradient(at_bottom_right,#4f46e5,transparent_60%)] p-4 bg-blend-multiply">
+    <motion.div
+      initial={{ opacity: 0, y: 60 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -40 }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+      className="modal-bg flex min-h-screen items-center justify-center p-4"
+    >
       <GetUser users={users} setUsers={setUsers} onSelect={setSelectedUser} />
 
       {selectedUser && (
-        <UpdateUser user={selectedUser} onUpdate={handleUpdateUser} />
+        <>
+          <UpdateUser user={selectedUser} onUpdate={handleUpdateUser} />
+          <DeleteUser user={selectedUser} onDelete={handleDeleteUser} />
+        </>
       )}
-    </div>
+    </motion.div>
   )
 }
 
