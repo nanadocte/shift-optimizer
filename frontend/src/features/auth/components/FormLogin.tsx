@@ -1,10 +1,26 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router'
 
-function Form() {
+interface FormProps {
+  mode: 'login' | 'signup'
+  setMode: React.Dispatch<React.SetStateAction<'login' | 'signup'>>
+}
+
+function Form({ mode }: FormProps) {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [error, setError] = useState(false)
-  const emailPassword: { email: string; password: string } = { email, password }
+
+  const emailPassword =
+    mode === 'signup'
+      ? {
+          email,
+          password,
+          name,
+        }
+      : { email, password }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -12,9 +28,11 @@ function Form() {
 
     try {
       const chargeUtile = JSON.stringify(emailPassword)
-      const response = await fetch('http://localhost:3000/auth/signup', {
+      const response = await fetch(`http://localhost:3000/auth/${mode}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: chargeUtile,
       })
       const data = await response.json()
@@ -22,7 +40,7 @@ function Form() {
         setError(true)
       } else {
         localStorage.setItem('token', data.token)
-        window.location.href = '#Hello'
+        navigate('/dashboard')
       }
     } catch (error) {
       console.log(error)
@@ -30,8 +48,23 @@ function Form() {
   }
 
   return (
-    <>
+    <div className="flex h-full flex-col justify-between gap-3">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {mode === 'signup' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs" htmlFor="name">
+              NAME
+            </label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="name"
+              type="name"
+              className="rounded-full border border-gray-800/40 bg-gray-50 p-2 text-xs"
+            ></input>
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <label className="text-xs" htmlFor="email">
             EMAIL
@@ -62,11 +95,12 @@ function Form() {
           type="submit"
           className="rounded-full bg-indigo-600 p-3 text-white transition hover:bg-indigo-700"
         >
-          Se connecter
+          {mode === 'signup' ? `S'inscrire` : 'Se connecter'}
         </button>
-        {error && <p>Hello c'est faux</p>}
+
+        {error && <p>Une erreur est survenue.</p>}
       </form>
-    </>
+    </div>
   )
 }
 
