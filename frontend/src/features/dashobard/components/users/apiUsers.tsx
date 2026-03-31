@@ -59,3 +59,31 @@ export const deleteUser = async (onDelete: (u: User) => void, user: User) => {
     console.error(error)
   }
 }
+
+export const addUser = async (
+  onAdd: (u: User) => void,
+  formData: {
+    email: string
+    name: string
+    id: number
+    job: string
+  }
+) => {
+  const chargeUtile = JSON.stringify(formData)
+  const token = localStorage.getItem('token')
+  try {
+    const response = await fetch(`http://localhost:3000/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: chargeUtile,
+    })
+    const data = await response.json()
+    if (!data) return null
+    onAdd(data)
+  } catch (error) {
+    console.log(error)
+  }
+}
